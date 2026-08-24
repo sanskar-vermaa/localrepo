@@ -1,76 +1,43 @@
 # StockFlow
 
-StockFlow is a full-stack inventory and order management system. It tracks
-products, stock levels, and customer orders for a small retail or wholesale
-business, and keeps inventory consistent as orders are placed, cancelled, or
-restocked.
+A small inventory + order management app. I built this after getting tired
+of tracking stock in a spreadsheet for a side project — once you have
+concurrent sales, restocks, and the occasional cancelled order, a
+spreadsheet just can't keep up. StockFlow keeps one source of truth
+(SQLite) and logs every stock change as a movement (`IN` / `OUT` /
+`ADJUSTMENT`) so you can always answer "why is this number what it is".
 
-## Why this exists
+Plain JS end to end — Express + better-sqlite3 on the backend, React
+(Vite) on the frontend. No TypeScript, no build step you have to think
+about.
 
-Spreadsheets fall apart once you need to know, in real time, how much stock
-is left after concurrent sales, restocks, and cancellations. StockFlow
-centralizes that state in a single source of truth (SQLite) and exposes it
-through a REST API and a React dashboard, with every stock change recorded
-as an auditable movement (`IN`, `OUT`, `ADJUSTMENT`).
+## What it does
 
-## Features
+- Login/register with two roles, `admin` and `staff` (JWT-based).
+- Product catalog — SKUs, categories, price/cost, reorder levels.
+- Restock and manual stock adjustments, with a full movement history per
+  product for auditing.
+- Orders: pick products into a cart, place the order, stock gets
+  decremented and the sale recorded in one transaction. Cancelling an
+  order restores the stock.
+- Low-stock alerts, sales summary by date range, top-selling products.
+- Search + pagination on the products/customers lists.
 
-- **Auth** — JWT-based login/register with `admin` and `staff` roles.
-- **Product catalog** — categories, SKUs, pricing, cost, reorder thresholds.
-- **Inventory** — restock, manual adjustments, and a full movement history
-  per product for auditing.
-- **Orders** — cart-style order creation that validates stock, decrements
-  inventory, and records the sale atomically; cancellation restores stock.
-- **Reporting** — low-stock alerts, sales summaries by date range, and
-  top-selling products.
-- **Search & pagination** — product and customer lists support search,
-  category filtering, and pagination.
+## Running it locally
 
-## Tech stack
-
-| Layer    | Choice                                   |
-|----------|-------------------------------------------|
-| Frontend | React (Vite), React Router                |
-| Backend  | Node.js, Express                           |
-| Database | SQLite (better-sqlite3)                    |
-| Auth     | JSON Web Tokens, bcrypt password hashing   |
-
-Everything is plain JavaScript — no TypeScript build step.
-
-## Project structure
-
-```
-localrepo/
-├── backend/          Express API + SQLite
-│   └── src/
-│       ├── db/           schema + connection
-│       ├── middleware/    auth, error handling
-│       ├── routes/        auth, products, categories, customers,
-│       │                  inventory, orders, reports
-│       └── server.js
-└── frontend/         React (Vite) dashboard
-    └── src/
-        ├── api/
-        ├── context/
-        ├── components/
-        └── pages/
-```
-
-## Getting started
-
-### Backend
+Backend first:
 
 ```bash
 cd backend
 npm install
-npm run seed   # optional: creates demo data
+npm run seed   # creates an admin user + some demo products
 npm run dev
 ```
 
-The API listens on `http://localhost:4000` by default. Copy
-`backend/.env.example` to `backend/.env` to override `PORT` or `JWT_SECRET`.
+That listens on `localhost:4000`. Copy `backend/.env.example` to `.env`
+if you want a different port or JWT secret.
 
-### Frontend
+Then the frontend, in another terminal:
 
 ```bash
 cd frontend
@@ -78,33 +45,54 @@ npm install
 npm run dev
 ```
 
-The dashboard runs on `http://localhost:5173` and proxies API calls to the
-backend.
+Opens on `localhost:5173`, proxies `/api` calls to the backend. Log in
+with `admin@stockflow.dev` / `admin123` (from the seed script).
 
-## Testing
-
-The backend has 15 integration tests covering auth, product validation,
-inventory guards, and the order/stock transaction logic:
+## Tests
 
 ```bash
 cd backend
 npm test
 ```
 
-Each test file spins up the Express app on an ephemeral port against a
-throwaway SQLite file, so tests never touch your local dev database.
+15 tests using node's built-in test runner — no jest, no mocking the
+database. Each file boots the real Express app on a random port against
+a throwaway SQLite file and hits it with plain `fetch`. Covers auth,
+product validation, the stock-adjustment guard, and the order
+creation/cancellation transaction logic (that last one's the part I was
+most worried about getting wrong).
 
-## API overview
+## Project layout
 
-| Method | Endpoint                     | Description                        |
-|--------|-------------------------------|-------------------------------------|
-| POST   | `/api/auth/register`          | Create an account                   |
-| POST   | `/api/auth/login`              | Log in, get a JWT                   |
-| GET    | `/api/products`                | List products (search/filter/paginate) |
-| POST   | `/api/products`                | Create a product (admin)            |
-| POST   | `/api/inventory/movements`     | Restock or adjust stock             |
-| GET    | `/api/inventory/low-stock`     | Products at or below reorder level  |
-| POST   | `/api/orders`                  | Place an order, decrement stock     |
-| POST   | `/api/orders/:id/cancel`       | Cancel an order, restore stock      |
-| GET    | `/api/reports/sales-summary`   | Revenue and order count over a range|
-| GET    | `/api/reports/top-products`    | Best-selling products               |
+```
+backend/src/
+  db/          schema.sql + the sqlite connection
+  middleware/  auth (jwt) + error handling
+  routes/      auth, products, categories, customers, inventory, orders, reports
+  seed.js
+  server.js
+
+frontend/src/
+  api/         axios client
+  context/     auth context
+  components/  layout, protected route
+  pages/       one file per screen
+```
+
+## API, roughly
+
+Auth: `POST /api/auth/register`, `POST /api/auth/login`.
+
+Everything else needs a bearer token. Products, categories, and
+customers are standard REST (`GET/POST/PUT/DELETE` on
+`/api/<resource>` and `/api/<resource>/:id`). Products support
+`?search=&category_id=&low_stock=true&page=&pageSize=`.
+
+Inventory: `POST /api/inventory/movements` (restock or adjust),
+`GET /api/inventory/low-stock`.
+
+Orders: `POST /api/orders` with `{ customer_id, items: [{product_id,
+quantity}] }`, `POST /api/orders/:id/cancel`.
+
+Reports: `GET /api/reports/sales-summary?from=&to=`,
+`GET /api/reports/top-products`.
