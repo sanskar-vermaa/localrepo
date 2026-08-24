@@ -1,8 +1,7 @@
 node_modules/
 *.log
 .env
-backend/data/*.sqlite
-backend/data/*.sqlite-journal
+backend/data/
 dist/
 build/
 .DS_Store
