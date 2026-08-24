@@ -81,6 +81,19 @@ npm run dev
 The dashboard runs on `http://localhost:5173` and proxies API calls to the
 backend.
 
+## Testing
+
+The backend has 15 integration tests covering auth, product validation,
+inventory guards, and the order/stock transaction logic:
+
+```bash
+cd backend
+npm test
+```
+
+Each test file spins up the Express app on an ephemeral port against a
+throwaway SQLite file, so tests never touch your local dev database.
+
 ## API overview
 
 | Method | Endpoint                     | Description                        |
