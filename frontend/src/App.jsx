@@ -12,6 +12,7 @@ import Orders from './pages/Orders.jsx';
 import OrderForm from './pages/OrderForm.jsx';
 import OrderDetail from './pages/OrderDetail.jsx';
 import Reports from './pages/Reports.jsx';
+import NotFound from './pages/NotFound.jsx';
 
 export default function App() {
   return (
@@ -35,7 +36,9 @@ export default function App() {
           <Route path="orders/new" element={<OrderForm />} />
           <Route path="orders/:id" element={<OrderDetail />} />
           <Route path="reports" element={<Reports />} />
+          <Route path="*" element={<NotFound />} />
         </Route>
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </AuthProvider>
   );
